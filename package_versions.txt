@@ -1,0 +1,12 @@
+python==3.12.13
+numpy==2.3.5
+pandas==2.2.3
+scipy==not installed in archive-preparation environment
+scikit-learn==not installed in archive-preparation environment
+statsmodels==not installed in archive-preparation environment
+xgboost==not installed in archive-preparation environment
+pygam==not installed in archive-preparation environment
+matplotlib==not installed in archive-preparation environment
+seaborn==not installed in archive-preparation environment
+joblib==not installed in archive-preparation environment
+tqdm==not installed in archive-preparation environment
