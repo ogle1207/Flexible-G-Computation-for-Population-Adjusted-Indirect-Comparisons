@@ -47,7 +47,7 @@ N_COV_REPS = 1000
 N_BOOT1K_ADDON = 500
 
 RESAMPLES_ADDON = 100
-RESAMPLES_CF_ADDON = 100
+RESAMPLES_SA_ADDON = 100
 N_STAR_ADDON = 2000
 
 OUT_DIR = "Final_Results_Analysis_ITC"
@@ -448,7 +448,7 @@ def run_addon_scenarios(base_learners):
             base_learners=base_learners,
             n_jobs=N_JOBS,
             resamples=RESAMPLES_ADDON,
-            resamples_cf=RESAMPLES_CF_ADDON,
+            resamples_sa=RESAMPLES_SA_ADDON,
             n_star=N_STAR_ADDON,
             run_robustness=False,
             save_diag=True,
