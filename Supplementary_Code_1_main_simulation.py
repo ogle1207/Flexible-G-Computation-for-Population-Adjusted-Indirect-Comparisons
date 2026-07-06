@@ -132,7 +132,7 @@ np.random.seed(555)
 
 N_sim        = 1000
 RESAMPLES    = 100
-RESAMPLES_CF = 100
+RESAMPLES_SA = 100
 N_STAR       = 2000
 BATCH_SIZE   = 25
 
@@ -555,8 +555,8 @@ def gcomp_sl_wrapper(data_AC, data_BC, n_resamples, n_star, base_learners,
     return est, var, np.percentile(boot_itc,2.5), np.percentile(boot_itc,97.5)
 
 
-def gcomp_sl_crossfit_wrapper(data_AC, data_BC, n_resamples_cf, n_star,
-                              base_learners, K_cf=5, K_sl=3):
+def gcomp_sl_split_averaged_wrapper(data_AC, data_BC, n_resamples_sa, n_star,
+                                    base_learners, K_outer=5, K_sl=3):
     try: x_star = generate_pseudo_population(data_AC, data_BC, n_star)
     except Exception: return np.nan,np.nan,np.nan,np.nan
     cols = ["trt","X1","X2","X3","X4"]
@@ -564,12 +564,12 @@ def gcomp_sl_crossfit_wrapper(data_AC, data_BC, n_resamples_cf, n_star,
     dC_full = x_star.copy(); dC_full["trt"]=0
     XA = _safe_X(dA_full[cols].values); XC = _safe_X(dC_full[cols].values)
     hat = []
-    for b_idx in range(n_resamples_cf):
+    for b_idx in range(n_resamples_sa):
         try:
             db = resample(data_AC, replace=True)
             X = _safe_X(db[cols].values); y = _safe_y(db["y"].values)
-            kf = KFold(n_splits=K_cf, shuffle=True, random_state=444+b_idx)
-            mAf = np.zeros(K_cf); mCf = np.zeros(K_cf)
+            kf = KFold(n_splits=K_outer, shuffle=True, random_state=444+b_idx)
+            mAf = np.zeros(K_outer); mCf = np.zeros(K_outer)
             for k,(tr,_) in enumerate(kf.split(X)):
                 if len(np.unique(y[tr]))<2:
                     mAf[k]=mCf[k]=float(np.mean(y)); continue
@@ -759,7 +759,7 @@ def compute_sl_diagnostics(data_AC, base_learners):
 # 7. Replicate driver
 # =============================================================================
 def run_one_replicate(j, IPD_AC, ALD_BC, base_learners,
-                      resamples, resamples_cf, n_star,
+                      resamples, resamples_sa, n_star,
                       run_robustness=False, fast_diag=True):
     os.environ['OMP_NUM_THREADS']='1'; os.environ['MKL_NUM_THREADS']='1'
     os.environ['OPENBLAS_NUM_THREADS']='1'; os.environ['NUMEXPR_NUM_THREADS']='1'
@@ -785,8 +785,8 @@ def run_one_replicate(j, IPD_AC, ALD_BC, base_learners,
             res["stc"]         = timed(stc_wrapper, data_AC, data_BC)
             res["gcomp_ml"]    = timed(gcomp_ml_wrapper, data_AC, data_BC, resamples, n_star)
             res["gcomp_sl"]    = timed(gcomp_sl_wrapper, data_AC, data_BC, resamples, n_star, base_learners)
-            res["gcomp_sl_cf"] = timed(gcomp_sl_crossfit_wrapper, data_AC, data_BC,
-                                       resamples_cf, n_star, base_learners)
+            res["gcomp_sl_sa"] = timed(gcomp_sl_split_averaged_wrapper, data_AC, data_BC,
+                                       resamples_sa, n_star, base_learners)
             res["tmle"]        = timed(tmle_wrapper, data_AC, data_BC, n_star, base_learners)
             res["tmle_sl"]     = timed(tmle_sl_wrapper, data_AC, data_BC, n_star, base_learners)
 
@@ -910,7 +910,7 @@ def stage_generate_data():
 # =============================================================================
 # 9. Simulation stage
 # =============================================================================
-METHODS = ["maic","stc","gcomp_ml","gcomp_sl","gcomp_sl_cf","tmle","tmle_sl"]
+METHODS = ["maic","stc","gcomp_ml","gcomp_sl","gcomp_sl_sa","tmle","tmle_sl"]
 METHODS_ROBUST = ["gcomp_sl_indep"]
 
 def load_scenario_data(fid):
@@ -1020,7 +1020,7 @@ def _scenario_fully_done(fid, methods_used, reps):
     return True
 
 def run_scenario(fid, ipd, ald_list, reps, base_learners, n_jobs,
-                 resamples, resamples_cf, n_star,
+                 resamples, resamples_sa, n_star,
                  run_robustness=False, save_diag=True):
     methods_used = METHODS + (METHODS_ROBUST if run_robustness else [])
 
@@ -1055,7 +1055,7 @@ def run_scenario(fid, ipd, ald_list, reps, base_learners, n_jobs,
                     batch = parallel(
                         delayed(run_one_replicate)(
                             j, ipd, ald_list, base_learners,
-                            resamples, resamples_cf, n_star, run_robustness)
+                            resamples, resamples_sa, n_star, run_robustness)
                         for j in range(bs, be))
                 break
             except Exception as e:
@@ -1147,7 +1147,7 @@ def stage_run_simulation():
         print(f"\n>>> {fid} (N={reps}, robust={run_rob}) | status: {counts}")
         try:
             run_scenario(fid, ipd, ald, reps, base_learners, n_jobs,
-                         RESAMPLES, RESAMPLES_CF, N_STAR,
+                         RESAMPLES, RESAMPLES_SA, N_STAR,
                          run_robustness=run_rob)
         except Exception as e:
             print(f"  [ERROR] {fid}: {type(e).__name__}: {e}")
@@ -1174,7 +1174,7 @@ def stage_run_simulation():
         print(f"\n>>> {fid} (N={reps}) | status: {counts}")
         try:
             run_scenario(fid, ipd, ald, reps, base_learners, n_jobs,
-                         RESAMPLES, RESAMPLES_CF, N_STAR,
+                         RESAMPLES, RESAMPLES_SA, N_STAR,
                          run_robustness=False)
         except Exception as e:
             print(f"  [ERROR] {fid}: {type(e).__name__}: {e}")
@@ -1358,7 +1358,7 @@ methods_map = {
     "STC":             "STC",
     "G-comp (ML)":     "GCOMP_ML",
     "G-comp (SL)":     "GCOMP_SL",
-    "G-comp (SL, SA)": "GCOMP_SL_CF",
+    "G-comp (SL, SA)": "GCOMP_SL_SA",
     "TMLE":            "TMLE",
     "TMLE (SL+CF)":    "TMLE_SL",
 }
