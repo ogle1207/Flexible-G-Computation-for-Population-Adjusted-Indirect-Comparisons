@@ -35,6 +35,12 @@ parallel execution include additional stochastic steps, reruns are expected to
 reproduce qualitative results up to Monte Carlo variation rather than
 bitwise-identical CSV files.
 
+In the manuscript, `G-comp SL, SA` denotes the split-averaged Super Learner
+G-computation sensitivity implementation. In the code, this implementation is
+defined by `gcomp_sl_split_averaged_wrapper` and writes to
+`Results/GCOMP_SL_SA`. It is distinct from `TMLE (SL+CF)`, where `CF` denotes
+cross-fitted Super Learner TMLE.
+
 ## Environment
 
 The code was prepared for Python 3 with numpy, pandas, scipy, scikit-learn,
